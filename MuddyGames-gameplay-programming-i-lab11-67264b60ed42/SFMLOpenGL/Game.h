@@ -33,8 +33,17 @@ private:
 	bool isRunning = false;
 	void initialize();
 	void update();
-	void render();
+	void render(mat4 &modelRef);
+	void RenderOtherCube(mat4 &modelRef);
 	void unload();
+	bool buttonPress = true;
+	int counter = 0;
+	int pressCount = 0;
+	bool jump = false;
+	bool fall = false;
+	
+	bool collide = false;
+	vec3 m_pos;
 };
 
 #endif

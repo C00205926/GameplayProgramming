@@ -30,16 +30,16 @@ int comp_count;		// Component of texture
 
 unsigned char* img_data;		// image data
 
-mat4 mvp, projection, view, model;			// Model View Projection
+mat4 mvp, projection, view, model, middle, rotateCube, player;			// Model View Projection
 
 Game::Game() : 
-	window(VideoMode(800, 600), 
+	window(VideoMode(1080, 720), 
 	"Introduction to OpenGL Texturing")
 {
 }
 
 Game::Game(sf::ContextSettings settings) : 
-	window(VideoMode(800, 600), 
+	window(VideoMode(1080, 720), 
 	"Introduction to OpenGL Texturing", 
 	sf::Style::Default, 
 	settings)
@@ -69,32 +69,45 @@ void Game::run()
 				isRunning = false;
 			}
 
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 			{
 				// Set Model Rotation
-				model = rotate(model, 0.01f, glm::vec3(0, 1, 0)); // Rotate
+				model = translate(model, glm::vec3(0, 0, .1)); // Rotate
 			}
 
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 			{
 				// Set Model Rotation
-				model = rotate(model, -0.01f, glm::vec3(0, 1, 0)); // Rotate
+				model = translate(model, glm::vec3(.1, 0, 0)); // Rotate
 			}
 
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 			{
 				// Set Model Rotation
-				model = rotate(model, -0.01f, glm::vec3(1, 0, 0)); // Rotate
+				model = translate(model, glm::vec3(-.1, 0, 0)); // Rotate
 			}
 
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
 			{
 				// Set Model Rotation
-				model = rotate(model, 0.01f, glm::vec3(1, 0, 0)); // Rotate
+				model = translate(model, glm::vec3(0, 0, -.1)); // Rotate
+			}
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+			{
+				rotateCube = rotate(rotateCube, 0.01f, glm::vec3(1, 0, 0));
+				rotateCube = rotate(rotateCube, 0.01f, glm::vec3(1, 0, 0));
+				buttonPress = false;
+			}
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+			{
+				pressCount + 1;
 			}
 		}
 		update();
-		render();
+		render(middle);
+		render(model);
+		render(rotateCube);
+		render(player);
 	}
 
 #if (DEBUG >= 2)
@@ -154,7 +167,7 @@ void Game::initialize()
 		"void main() {"
 		"	color = sv_color;"
 		"	uv = sv_uv;"
-		//"	gl_Position = vec4(sv_position, 1);"
+		/*"	gl_Position = vec4(sv_position, 1);"*/
 		"	gl_Position = sv_mvp * vec4(sv_position, 1);"
 		"}"; //Vertex Shader Src
 
@@ -294,9 +307,44 @@ void Game::initialize()
 		);
 
 	// Model matrix
-	model = mat4(
+	
+	model = mat4
+	(
 		1.0f					// Identity Matrix
-		);
+	);
+	
+	
+	middle = mat4
+	(
+		1.0f
+	);
+
+
+	rotateCube = mat4
+	(
+		1.0f
+	);
+
+	player = mat4
+	(
+		1.0f
+	);
+
+	
+	
+
+	model = translate(model, vec3(-4, 0, 0));
+	model = rotate(model, -11.0f, vec3(-2, 0, 0));
+	
+	middle = translate(middle, vec3(-.5, 0, 0));
+	middle = rotate(middle, -11.0f, vec3(-2, 0, 0));
+	
+	rotateCube = translate(rotateCube, vec3(3.5, 0, 0));
+
+
+	player = scale(player, vec3(0.5, 0.5, .5));
+	player = translate(player, vec3(-9, 3, 0));
+	player = rotate(player, -4.7f, vec3(1, 0, 0));
 
 	// Enable Depth Test
 	glEnable(GL_DEPTH_TEST);
@@ -311,9 +359,53 @@ void Game::update()
 #endif
 	// Update Model View Projection
 	mvp = projection * view * model;
+
+	
+	if (pressCount != 2)
+	{
+	
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && jump == false)
+		{
+			jump = true;
+
+
+
+		}
+		if (jump)
+		{
+			counter += 1;
+			player = translate(player, vec3(0.008, 0, -0.01));
+			if (counter == 500)
+			{
+				jump = false;
+				fall = true;
+
+			}
+		}
+		if (middle[3].x - 3 == player[3].x + 2)
+		{
+			collide = true;
+		}
+		if (fall /*&& collide == true*/)
+		{
+			/*player = translate(player, vec3(0, 0, 0.009));
+			counter = 0;*/
+
+			counter -= 1;
+			player = translate(player, vec3(0.008, 0, 0.01));
+			if (counter == 0)
+			{
+				fall = false;
+
+			}
+		}
+	}
+	
+	
+	
 }
 
-void Game::render()
+void Game::render(mat4 &modelRef)
 {
 
 #if (DEBUG >= 2)
@@ -321,6 +413,25 @@ void Game::render()
 #endif
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	RenderOtherCube(model);
+	RenderOtherCube(middle);
+	RenderOtherCube(rotateCube);
+	RenderOtherCube(player);
+
+	window.display();
+
+	//Disable Arrays
+	glDisableVertexAttribArray(positionID);
+	glDisableVertexAttribArray(colorID);
+	glDisableVertexAttribArray(uvID);
+	
+}
+
+void Game::RenderOtherCube(mat4 &modelRef)
+{
+
+	mvp = projection * view * modelRef;
 
 	//VBO Data....vertices, colors and UV's appended
 	glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), vertices);
@@ -339,7 +450,7 @@ void Game::render()
 	glVertexAttribPointer(positionID, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glVertexAttribPointer(colorID, 4, GL_FLOAT, GL_FALSE, 0, (VOID*)(3 * VERTICES * sizeof(GLfloat)));
 	glVertexAttribPointer(uvID, 2, GL_FLOAT, GL_FALSE, 0, (VOID*)(((3 * VERTICES) + (4 * COLORS)) * sizeof(GLfloat)));
-	
+
 	//Enable Arrays
 	glEnableVertexAttribArray(positionID);
 	glEnableVertexAttribArray(colorID);
@@ -347,14 +458,8 @@ void Game::render()
 
 	//Draw Element Arrays
 	glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
-	window.display();
-
-	//Disable Arrays
-	glDisableVertexAttribArray(positionID);
-	glDisableVertexAttribArray(colorID);
-	glDisableVertexAttribArray(uvID);
-	
 }
+
 
 void Game::unload()
 {
